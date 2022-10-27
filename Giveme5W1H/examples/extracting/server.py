@@ -1,8 +1,9 @@
+from newsplease import NewsPlease
 import logging
 import os
 import socket
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, abort
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from Giveme5W1H.extractor.document import Document
@@ -67,9 +68,22 @@ def root():
 
 
 def request_to_document():
+    document = None
     if request.method == 'POST':
         data = request.get_json(force=True)
-        document = reader.parse_newsplease(data, 'Server')
+        content = data["content"]
+        mode = data["mode"]
+        date = data["date"]
+        if ( content in [ None, '' ] ):
+           return None, None
+        if ( mode in ["json", "newsplease", "news-please"] ): # newsplease format
+            document = reader.parse_newsplease(content, 'Server')
+        elif ( mode in ["plaintext"] ): # plaintext
+            document = Document.from_text(content, date=date)
+        elif ( mode in ["URL"] ):
+            article = NewsPlease.from_url(content)
+            document = Document.from_newsplease(article)
+            return document, article
     elif request.method == 'GET':
         # either
         full_text = request.args.get('fulltext', '')
@@ -87,20 +101,27 @@ def request_to_document():
             document = Document(title, description, text, date=date)
         else:
             log.error("Retrieved data does not contain title or full_text. One of them is required.")
-            return None
+            return None, None
 
-    return document
+    return document, None
 
 
 # define route for parsing requests
 @app.route('/extract', methods=['GET', 'POST'])
 def extract():
-    document = request_to_document()
+    rtn = {}
+    document, article = request_to_document()
     if document:
         extractor.parse(document)
         answer = writer.generate_json(document)
         fwoh = pick_5w1h(document)
-        return jsonify({ "5w1h": fwoh, "parsed_result": answer })
+        rtn.update( { "5w1h": fwoh, "parsed_result": answer })
+    if article:
+        rtn.update( { "news-please": article.__dict__ } )
+
+    if any(rtn):
+        return jsonify( rtn )
+    abort(400, "failed parsing input parameters")
 
 
 # define route for parsing requests
