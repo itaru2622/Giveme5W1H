@@ -99,7 +99,8 @@ def extract():
     if document:
         extractor.parse(document)
         answer = writer.generate_json(document)
-        return jsonify(answer)
+        fwoh = pick_5w1h(document)
+        return jsonify({ "5w1h": fwoh, "parsed_result": answer })
 
 
 # define route for parsing requests
@@ -111,9 +112,19 @@ def extract():
 #        answer = writer.generate_json(document)
 #        return jsonify(answer)
 
+def pick_5w1h(doc):
+   rtn={}
+   for key in ['who', 'what', 'where', 'when', 'why', 'how' ]:
+       try:
+          res = doc.get_top_answer(key).get_parts_as_text()
+          rtn[key] = res
+       except IndexError:
+          rtn[key] = "N/A"
+   return rtn
 
 def main():
     log.info("starting server on port %i", port)
+    app.config["JSON_SORT_KEYS"] = False # disable sorting keys for jsonify()
     app.run(host, port, debug)
 
     log.info("server has stopped")
