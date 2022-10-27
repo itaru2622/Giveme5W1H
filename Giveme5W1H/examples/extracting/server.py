@@ -40,7 +40,6 @@ debug = False
 
 # Template engine
 env = Environment(
-    loader=PackageLoader('Giveme5W1H.examples', 'Giveme5W1H.extracting'),
     autoescape=select_autoescape(['html', 'xml'])
 )
 
