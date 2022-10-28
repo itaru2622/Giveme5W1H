@@ -137,7 +137,12 @@ def pick_5w1h(doc):
    rtn={}
    for key in ['who', 'what', 'where', 'when', 'why', 'how' ]:
        try:
-          res = doc.get_top_answer(key).get_parts_as_text()
+          #res = doc.get_top_answer(key).get_parts_as_text()
+          res = doc.get_answers(key)
+          if ( res is None or len(res)==0 ):
+            res = "N/A"
+          else:
+            res = [ { "text": c.get_parts_as_text(), "score": c.get_score(), "nlpIndexSentence": c.get_sentence_index() } for c in res ]
           rtn[key] = res
        except IndexError:
           rtn[key] = "N/A"
